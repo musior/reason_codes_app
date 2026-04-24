@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reason Codes</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-dot"></div>
+        <div>
+          <h1>Performance Reason Codes</h1>
+          <div class="header-meta">Zarządzanie przyczynami niedociągnięć</div>
+        </div>
+      </div>
+      <div class="api-status">
+        <div class="api-dot loading" id="apiDot"></div>
+        <span id="apiLabel" style="color: var(--text3)">Łączenie z API...</span>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Łącznie wpisów</div>
+          <div class="stat-value" id="statTotal">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Klient 3M</div>
+          <div class="stat-value" id="stat3m">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Klient Solventum</div>
+          <div class="stat-value" id="statSol">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Unikalne dni</div>
+          <div class="stat-value" id="statDays">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Work Centers</div>
+          <div class="stat-value" id="statWC">—</div>
+        </div>
+      </div>
+
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              class="search-input"
+              id="searchInput"
+              type="text"
+              placeholder="Szukaj..."
+            />
+          </div>
+          <select class="filter-select" id="filterClient">
+            <option value="">Wszyscy klienci</option>
+            <option value="3M">3M</option>
+            <option value="Solventum">Solventum</option>
+          </select>
+          <select class="filter-select" id="filterWC">
+            <option value="">Wszystkie Work Centers</option>
+          </select>
+          <select class="filter-select" id="filterRC">
+            <option value="">Wszystkie Reason Codes</option>
+          </select>
+          <input
+            type="month"
+            class="filter-select"
+            id="filterMonth"
+            style="width: 150px"
+          />
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-ghost" id="refreshBtn" onclick="loadData()">
+            <svg viewBox="0 0 24 24">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Odśwież
+          </button>
+          <button class="btn btn-primary" onclick="openModal()">
+            <svg viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Dodaj wpis
+          </button>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="id-col" onclick="sortBy('id')" id="th-id">
+                  #<span class="sort-icon">↕</span>
+                </th>
+                <th onclick="sortBy('date')" id="th-date">
+                  Data<span class="sort-icon">↕</span>
+                </th>
+                <th onclick="sortBy('client')" id="th-client">
+                  Klient<span class="sort-icon">↕</span>
+                </th>
+                <th onclick="sortBy('workCenter')" id="th-workCenter">
+                  Work Center<span class="sort-icon">↕</span>
+                </th>
+                <th onclick="sortBy('reasonCode')" id="th-reasonCode">
+                  Reason Code<span class="sort-icon">↕</span>
+                </th>
+                <th>Dodano<span class="sort-icon"></span></th>
+                <th class="actions-col"></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <div class="page-info" id="pageInfo">—</div>
+          <div class="page-btns" id="pageBtns"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT MODAL -->
+    <div class="modal-backdrop" id="formModal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="modalTitle">Dodaj wpis</div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editId" />
+          <div class="form-group">
+            <label class="form-label">Data<span>*</span></label>
+            <input type="date" class="form-input" id="fieldDate" />
+            <div class="form-hint" id="hintDate">Pole wymagane</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Klient<span>*</span></label>
+            <select class="form-select" id="fieldClient">
+              <option value="">— wybierz —</option>
+              <option value="3M">3M</option>
+              <option value="Solventum">Solventum</option>
+            </select>
+            <div class="form-hint" id="hintClient">Pole wymagane</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Work Center<span>*</span></label>
+            <select class="form-select" id="fieldWC">
+              <option value="">— wybierz —</option>
+            </select>
+            <div class="form-hint" id="hintWC">Pole wymagane</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reason Code<span>*</span></label>
+            <select class="form-select" id="fieldRC">
+              <option value="">— wybierz —</option>
+            </select>
+            <div class="form-hint" id="hintRC">Pole wymagane</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal()">Anuluj</button>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
+            Zapisz
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE MODAL -->
+    <div class="modal-backdrop delete-modal" id="deleteModal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" style="color: var(--red)">Usuń wpis</div>
+          <button class="modal-close" onclick="closeDeleteModal()">×</button>
+        </div>
+        <div class="modal-body delete-modal">
+          <div class="delete-desc">
+            Czy na pewno chcesz usunąć ten wpis? Tej operacji nie można cofnąć.
+          </div>
+          <div class="delete-item" id="deleteDesc">—</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeDeleteModal()">
+            Anuluj
+          </button>
+          <button
+            class="btn btn-danger"
+            id="confirmDeleteBtn"
+            onclick="confirmDelete()"
+          >
+            <svg viewBox="0 0 24 24">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+            </svg>
+            Usuń
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
