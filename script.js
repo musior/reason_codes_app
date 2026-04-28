@@ -1,11 +1,17 @@
-// ── STAŁE ──
-const API_BASE = "/api/apps/performance/reasons/";
-const API_KEY = "";
+// ======================================================
+// PERFORMANCE REASONS APP - FULL CRUD (API READY)
+// Endpoint:
+// /api/apps/performance/reasons/?key=XXX&type=GET
+// ======================================================
 
-const CLIENTS = [
-  { id: 1, name: "3M" },
-  { id: 2, name: "Solventum" },
-];
+// ---------------- CONFIG ----------------
+const API_KEY = "K3hT9sYrP2nV8bNq";
+const API_BASE = "/api/apps/performance/reasons/";
+
+const PAGE_SIZE = 20;
+
+// ---------------- STATIC DATA ----------------
+const CLIENTS = ["3M", "Solventum"];
 
 const WORK_CENTERS = [
   { id: 1, name: "Przyjęcie drobnicy" },
@@ -35,453 +41,300 @@ const REASON_CODES = [
   { id: 8, name: "Dodatkowe czynności - DD" },
   { id: 9, name: "Nowy operator, kontrola reszty" },
   { id: 10, name: "Błędnie załadowany towar" },
-  { id: 11, name: "Szkolenie nowego pracownika" },
-  { id: 12, name: "Wymogi klienta" },
-  { id: 13, name: "Zamówienia paczkowe" },
-  { id: 14, name: "Rozdrobnienie Pickingu (3.9K / Linię)" },
-  { id: 15, name: "Rozdrobnienie Pickingu (3.3K / Linię)" },
-  { id: 16, name: "Rozdrobnienie Pickingu (4.0K / Linię)" },
-  { id: 17, name: "Rozdrobnienie Pickingu (4.2K / Linię)" },
-  { id: 18, name: "Niewykwalifikowani pracownicy" },
-  { id: 19, name: "Zamówienia drobnicowe" },
-  { id: 20, name: "Zgrzewy - wysoki wolumen" },
-  { id: 21, name: "Instrukcje - wysoki wolumen" },
-  { id: 22, name: "Niski wolumen" },
-  { id: 23, name: "Opóźnienie w pickingu" },
-  { id: 24, name: "Rozdrobnienie Pickingu (2.3K / Linię)" },
-  { id: 25, name: "Problem ze specyfikacjami/przewoźnikami" },
-  { id: 26, name: "Ograniczona ilość miejsca odstawczego" },
 ];
 
-// ── STAN ──
-let allData = [];
+// ---------------- STATE ----------------
+let rows = [];
 let filtered = [];
-let sortKey = "date";
-let sortDir = -1; // -1 = desc, 1 = asc
 let currentPage = 1;
-const PAGE_SIZE = 20;
-let deleteTarget = null;
+let editId = null;
 
-// ── LOOKUP HELPERS ──
-const wcById = (id) => WORK_CENTERS.find((w) => w.id === +id);
-const rcById = (id) => REASON_CODES.find((r) => r.id === +id);
-const wcName = (id) => wcById(id)?.name || `WC #${id}`;
-const rcName = (id) => rcById(id)?.name || `RC #${id}`;
+// ---------------- HELPERS ----------------
+const $ = (id) => document.getElementById(id);
 
-// ── BOOTSTRAP ──
-function init() {
-  populateSelects();
-  loadData();
-
-  document
-    .getElementById("searchInput")
-    .addEventListener("input", applyFilters);
-  document
-    .getElementById("filterClient")
-    .addEventListener("change", applyFilters);
-  document.getElementById("filterWC").addEventListener("change", applyFilters);
-  document.getElementById("filterRC").addEventListener("change", applyFilters);
-  document
-    .getElementById("filterMonth")
-    .addEventListener("change", applyFilters);
-
-  // Close modals on backdrop click
-  document.getElementById("formModal").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) closeModal();
-  });
-  document.getElementById("deleteModal").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) closeDeleteModal();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeModal();
-      closeDeleteModal();
-    }
-  });
+function wcName(id) {
+  return WORK_CENTERS.find((x) => x.id == id)?.name || `WC ${id}`;
 }
 
-function populateSelects() {
-  const wcFilter = document.getElementById("filterWC");
-  const rcFilter = document.getElementById("filterRC");
-  const fieldWC = document.getElementById("fieldWC");
-  const fieldRC = document.getElementById("fieldRC");
-
-  WORK_CENTERS.forEach((w) => {
-    wcFilter.add(new Option(w.name, w.id));
-    fieldWC.add(new Option(w.name, w.id));
-  });
-  REASON_CODES.forEach((r) => {
-    rcFilter.add(new Option(r.name, r.id));
-    fieldRC.add(new Option(r.name, r.id));
-  });
+function rcName(id) {
+  return REASON_CODES.find((x) => x.id == id)?.name || `RC ${id}`;
 }
 
-// ── API ──
-function setApiStatus(status, label) {
-  const dot = document.getElementById("apiDot");
-  const lbl = document.getElementById("apiLabel");
-  dot.className = "api-dot " + status;
-  lbl.textContent = label;
-  lbl.style.color =
-    status === "ok"
-      ? "var(--green)"
-      : status === "err"
-        ? "var(--red)"
-        : "var(--amber)";
+function toast(msg, type = "ok") {
+  const el = $("toast");
+  if (!el) return alert(msg);
+
+  el.innerText = msg;
+  el.className = "toast show " + type;
+
+  setTimeout(() => {
+    el.className = "toast";
+  }, 2500);
 }
 
-async function apiCall(type, body = null) {
+// ---------------- API ----------------
+async function api(type, body = null) {
   const url = `${API_BASE}?key=${API_KEY}&type=${type}`;
-  const opts = {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+
+  const options = {
+    method: body ? "POST" : "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
   };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(url, options);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return await res.json();
 }
 
+// ---------------- LOAD DATA ----------------
 async function loadData() {
-  setApiStatus("loading", "Ładowanie...");
-  document.getElementById("tableBody").innerHTML =
-    '<tr class="loading-row"><td colspan="7"><div class="spinner"></div></td></tr>';
-
   try {
-    const url = `${API_BASE}?key=${API_KEY}&type=GET`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    allData = await res.json();
-    setApiStatus("ok", "API połączone");
-    applyFilters();
-    updateStats();
+    setStatus("loading", "Ładowanie...");
+
+    const data = await api("GET");
+
+    rows = data.map((r) => ({
+      id: r.id,
+      date: r.date,
+      client: r.client,
+      work_center: r.work_center,
+      reason_code: r.reason_code,
+      created_at: r.created_at,
+    }));
+
+    filtered = [...rows];
+
+    setStatus("ok", "Połączono");
+    render();
+    renderStats();
   } catch (err) {
-    setApiStatus("err", "Błąd API");
-    showToast("Nie można pobrać danych: " + err.message, "error");
-    document.getElementById("tableBody").innerHTML =
-      `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠</div><div class="empty-text">Błąd połączenia z API</div></div></td></tr>`;
+    setStatus("err", "Błąd API");
+    toast(err.message, "err");
+    console.error(err);
   }
 }
 
-// ── STATS ──
-function updateStats() {
-  const data = allData;
-  document.getElementById("statTotal").textContent = data.length;
-  document.getElementById("stat3m").textContent = data.filter(
-    (r) => r.client === "3M",
-  ).length;
-  document.getElementById("statSol").textContent = data.filter(
-    (r) => r.client === "Solventum",
-  ).length;
-  document.getElementById("statDays").textContent = new Set(
-    data.map((r) => r.date),
-  ).size;
-  document.getElementById("statWC").textContent = new Set(
-    data.map((r) => r.workCenter),
-  ).size;
+// ---------------- STATUS ----------------
+function setStatus(type, txt) {
+  const el = $("apiStatus");
+  if (!el) return;
+
+  el.innerText = txt;
+  el.className = type;
 }
 
-// ── FILTROWANIE I SORTOWANIE ──
-function applyFilters() {
-  const q = document.getElementById("searchInput").value.toLowerCase();
-  const cli = document.getElementById("filterClient").value;
-  const wc = document.getElementById("filterWC").value;
-  const rc = document.getElementById("filterRC").value;
-  const month = document.getElementById("filterMonth").value; // "YYYY-MM"
+// ---------------- RENDER ----------------
+function render() {
+  const tbody = $("tableBody");
+  if (!tbody) return;
 
-  filtered = allData.filter((r) => {
-    if (cli && r.client !== cli) return false;
-    if (wc && String(r.workCenter) !== String(wc)) return false;
-    if (rc && String(r.reasonCode) !== String(rc)) return false;
-    if (month && !r.date.startsWith(month)) return false;
-    if (q) {
-      const haystack = [
-        r.date,
-        r.client,
-        wcName(r.workCenter),
-        rcName(r.reasonCode),
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+
+  const pageRows = filtered.slice(start, end);
+
+  if (!pageRows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7">Brak danych</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = pageRows
+    .map(
+      (r) => `
+    <tr>
+      <td>${r.id}</td>
+      <td>${r.date}</td>
+      <td>${r.client}</td>
+      <td>${wcName(r.work_center)}</td>
+      <td>${rcName(r.reason_code)}</td>
+      <td>${r.created_at || "-"}</td>
+      <td>
+        <button onclick="openEdit(${r.id})">✏️</button>
+        <button onclick="removeRow(${r.id})">🗑️</button>
+      </td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  renderPagination();
+}
+
+// ---------------- PAGINATION ----------------
+function renderPagination() {
+  const el = $("pagination");
+  if (!el) return;
+
+  const pages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  let html = "";
+
+  for (let i = 1; i <= pages; i++) {
+    html += `
+      <button onclick="goPage(${i})"
+      class="${i === currentPage ? "active" : ""}">
+      ${i}
+      </button>
+    `;
+  }
+
+  el.innerHTML = html;
+}
+
+function goPage(page) {
+  currentPage = page;
+  render();
+}
+
+// ---------------- FILTER ----------------
+function filterRows() {
+  const q = $("searchInput").value.toLowerCase();
+
+  filtered = rows.filter((r) => {
+    const text = `
+      ${r.id}
+      ${r.date}
+      ${r.client}
+      ${wcName(r.work_center)}
+      ${rcName(r.reason_code)}
+    `.toLowerCase();
+
+    return text.includes(q);
   });
 
-  sortData();
   currentPage = 1;
-  renderTable();
+  render();
 }
 
-function sortBy(key) {
-  if (sortKey === key) {
-    sortDir *= -1;
-  } else {
-    sortKey = key;
-    sortDir = -1;
-  }
-  sortData();
-  renderTable();
-  // Update header styles
-  document
-    .querySelectorAll("thead th")
-    .forEach((th) => th.classList.remove("sorted"));
-  const th = document.getElementById("th-" + key);
-  if (th) {
-    th.classList.add("sorted");
-    th.querySelector(".sort-icon").textContent = sortDir === -1 ? "↓" : "↑";
-  }
+// ---------------- STATS ----------------
+function renderStats() {
+  if ($("statTotal")) $("statTotal").innerText = rows.length;
+  if ($("stat3m"))
+    $("stat3m").innerText = rows.filter((x) => x.client === "3M").length;
+  if ($("statSol"))
+    $("statSol").innerText = rows.filter(
+      (x) => x.client === "Solventum",
+    ).length;
 }
 
-function sortData() {
-  filtered.sort((a, b) => {
-    let av = a[sortKey],
-      bv = b[sortKey];
-    if (sortKey === "workCenter") {
-      av = wcName(av);
-      bv = wcName(bv);
-    }
-    if (sortKey === "reasonCode") {
-      av = rcName(av);
-      bv = rcName(bv);
-    }
-    if (av < bv) return -sortDir;
-    if (av > bv) return sortDir;
-    return 0;
-  });
-}
-
-// ── RENDER TABLE ──
-function renderTable() {
-  const tbody = document.getElementById("tableBody");
-  const total = filtered.length;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  if (currentPage > pages) currentPage = pages;
-
-  const slice = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  if (!slice.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">${allData.length ? "Brak wyników dla wybranych filtrów" : "Brak wpisów — dodaj pierwszy wpis"}</div></div></td></tr>`;
-  } else {
-    tbody.innerHTML = slice
-      .map((r) => {
-        const clientClass = r.client === "3M" ? "client-3m" : "client-sol";
-        const created = r.createdAt
-          ? r.createdAt.slice(0, 16).replace("T", " ")
-          : "—";
-        return `<tr>
-        <td class="id-col">${r.id}</td>
-        <td class="date-col">${r.date}</td>
-        <td><span class="client-badge ${clientClass}">${r.client}</span></td>
-        <td><span class="wc-tag">${wcName(r.workCenter)}</span></td>
-        <td><span class="rc-tag" title="${rcName(r.reasonCode)}">${rcName(r.reasonCode)}</span></td>
-        <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${created}</td>
-        <td class="actions-col">
-          <button class="action-btn edit" onclick="openModal(${r.id})" title="Edytuj">
-            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="action-btn delete" onclick="openDeleteModal(${r.id})" title="Usuń">
-            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-          </button>
-        </td>
-      </tr>`;
-      })
-      .join("");
-  }
-
-  // Pagination
-  const info = total
-    ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, total)} z ${total} wpisów`
-    : "0 wpisów";
-  document.getElementById("pageInfo").textContent = info;
-
-  const btns = document.getElementById("pageBtns");
-  btns.innerHTML = "";
-  const addBtn = (label, page, active, disabled) => {
-    const b = document.createElement("button");
-    b.className = "page-btn" + (active ? " active" : "");
-    b.disabled = disabled;
-    b.textContent = label;
-    b.onclick = () => {
-      currentPage = page;
-      renderTable();
-    };
-    btns.appendChild(b);
-  };
-  addBtn("‹", currentPage - 1, false, currentPage === 1);
-  const start = Math.max(1, currentPage - 2);
-  const end = Math.min(pages, currentPage + 2);
-  if (start > 1) addBtn("1", 1, false, false);
-  if (start > 2) {
-    const dots = document.createElement("span");
-    dots.textContent = "…";
-    dots.style.cssText = "padding:4px 6px;color:var(--text3);font-size:12px";
-    btns.appendChild(dots);
-  }
-  for (let p = start; p <= end; p++) addBtn(p, p, p === currentPage, false);
-  if (end < pages - 1) {
-    const dots = document.createElement("span");
-    dots.textContent = "…";
-    dots.style.cssText = "padding:4px 6px;color:var(--text3);font-size:12px";
-    btns.appendChild(dots);
-  }
-  if (end < pages) addBtn(pages, pages, false, false);
-  addBtn("›", currentPage + 1, false, currentPage === pages);
-}
-
-// ── MODAL ADD/EDIT ──
-function openModal(id = null) {
-  const modal = document.getElementById("formModal");
-  const title = document.getElementById("modalTitle");
-  clearFormErrors();
-
-  if (id !== null) {
-    const r = allData.find((x) => x.id === id);
-    if (!r) return;
-    title.textContent = "Edytuj wpis";
-    document.getElementById("editId").value = r.id;
-    document.getElementById("fieldDate").value = r.date;
-    document.getElementById("fieldClient").value = r.client;
-    document.getElementById("fieldWC").value = r.workCenter;
-    document.getElementById("fieldRC").value = r.reasonCode;
-  } else {
-    title.textContent = "Dodaj wpis";
-    document.getElementById("editId").value = "";
-    document.getElementById("fieldDate").value = new Date()
-      .toISOString()
-      .slice(0, 10);
-    document.getElementById("fieldClient").value = "";
-    document.getElementById("fieldWC").value = "";
-    document.getElementById("fieldRC").value = "";
-  }
-
-  modal.classList.add("open");
-  setTimeout(() => document.getElementById("fieldDate").focus(), 100);
-}
-
-function closeModal() {
-  document.getElementById("formModal").classList.remove("open");
-}
-
-function clearFormErrors() {
-  ["Date", "Client", "WC", "RC"].forEach((f) => {
-    document.getElementById("field" + f).classList.remove("error");
-    document.getElementById("hint" + f).classList.remove("visible");
-  });
-}
-
-function validateForm() {
-  let ok = true;
-  const checks = [
-    {
-      field: "fieldDate",
-      hint: "hintDate",
-      val: document.getElementById("fieldDate").value,
-    },
-    {
-      field: "fieldClient",
-      hint: "hintClient",
-      val: document.getElementById("fieldClient").value,
-    },
-    {
-      field: "fieldWC",
-      hint: "hintWC",
-      val: document.getElementById("fieldWC").value,
-    },
-    {
-      field: "fieldRC",
-      hint: "hintRC",
-      val: document.getElementById("fieldRC").value,
-    },
-  ];
-  checks.forEach(({ field, hint, val }) => {
-    if (!val) {
-      document.getElementById(field).classList.add("error");
-      document.getElementById(hint).classList.add("visible");
-      ok = false;
-    }
-  });
-  return ok;
-}
-
-async function saveEntry() {
-  clearFormErrors();
-  if (!validateForm()) return;
-
-  const id = document.getElementById("editId").value;
-  const payload = {
-    date: document.getElementById("fieldDate").value,
-    client: document.getElementById("fieldClient").value,
-    workCenter: +document.getElementById("fieldWC").value,
-    reasonCode: +document.getElementById("fieldRC").value,
-  };
-
-  const saveBtn = document.getElementById("saveBtn");
-  saveBtn.disabled = true;
-  saveBtn.innerHTML = '<div class="spinner"></div> Zapisywanie...';
-
+// ---------------- CREATE ----------------
+async function saveRow() {
   try {
-    if (id) {
-      await apiCall("UPDATE", { id: +id, ...payload });
-      showToast("Wpis zaktualizowany", "success");
-    } else {
-      await apiCall("CREATE", payload);
-      showToast("Wpis dodany", "success");
+    const payload = {
+      date: $("fieldDate").value,
+      client: $("fieldClient").value,
+      work_center: Number($("fieldWC").value),
+      reason_code: Number($("fieldRC").value),
+    };
+
+    if (!payload.date || !payload.client) {
+      toast("Uzupełnij formularz", "err");
+      return;
     }
+
+    if (editId) {
+      await api("UPDATE", {
+        id: editId,
+        ...payload,
+      });
+
+      toast("Zaktualizowano");
+    } else {
+      await api("CREATE", payload);
+      toast("Dodano");
+    }
+
     closeModal();
     await loadData();
   } catch (err) {
-    showToast("Błąd zapisu: " + err.message, "error");
-  } finally {
-    saveBtn.disabled = false;
-    saveBtn.innerHTML =
-      '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Zapisz';
+    toast(err.message, "err");
   }
 }
 
-// ── MODAL DELETE ──
-function openDeleteModal(id) {
-  const r = allData.find((x) => x.id === id);
-  if (!r) return;
-  deleteTarget = id;
-  document.getElementById("deleteDesc").innerHTML =
-    `ID ${r.id} · ${r.date} · <strong>${r.client}</strong> · ${wcName(r.workCenter)} · ${rcName(r.reasonCode)}`;
-  document.getElementById("deleteModal").classList.add("open");
+// ---------------- EDIT ----------------
+function openEdit(id) {
+  const row = rows.find((x) => x.id == id);
+  if (!row) return;
+
+  editId = id;
+
+  $("fieldDate").value = row.date;
+  $("fieldClient").value = row.client;
+  $("fieldWC").value = row.work_center;
+  $("fieldRC").value = row.reason_code;
+
+  openModal();
 }
 
-function closeDeleteModal() {
-  document.getElementById("deleteModal").classList.remove("open");
-  deleteTarget = null;
-}
-
-async function confirmDelete() {
-  if (!deleteTarget) return;
-  const btn = document.getElementById("confirmDeleteBtn");
-  btn.disabled = true;
+// ---------------- DELETE ----------------
+async function removeRow(id) {
+  if (!confirm("Usunąć wpis?")) return;
 
   try {
-    await apiCall("DELETE", { id: deleteTarget });
-    showToast("Wpis usunięty", "success");
-    closeDeleteModal();
+    await api("DELETE", { id });
+    toast("Usunięto");
     await loadData();
   } catch (err) {
-    showToast("Błąd usuwania: " + err.message, "error");
-  } finally {
-    btn.disabled = false;
+    toast(err.message, "err");
   }
 }
 
-// ── TOAST ──
-let toastTimer = null;
-function showToast(msg, type = "") {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = "visible" + (type ? " " + type : "");
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.className = ""), 3000);
+// ---------------- MODAL ----------------
+function openModal() {
+  $("modal").style.display = "flex";
+}
+
+function closeModal() {
+  $("modal").style.display = "none";
+  editId = null;
+
+  $("fieldDate").value = "";
+  $("fieldClient").value = "";
+  $("fieldWC").value = "";
+  $("fieldRC").value = "";
+}
+
+// ---------------- SELECTS ----------------
+function fillSelects() {
+  $("fieldClient").innerHTML =
+    `<option value="">Wybierz</option>` +
+    CLIENTS.map((x) => `<option>${x}</option>`).join("");
+
+  $("fieldWC").innerHTML =
+    `<option value="">Wybierz</option>` +
+    WORK_CENTERS.map((x) => `<option value="${x.id}">${x.name}</option>`).join(
+      "",
+    );
+
+  $("fieldRC").innerHTML =
+    `<option value="">Wybierz</option>` +
+    REASON_CODES.map((x) => `<option value="${x.id}">${x.name}</option>`).join(
+      "",
+    );
+}
+
+// ---------------- INIT ----------------
+function init() {
+  fillSelects();
+  loadData();
+
+  if ($("searchInput")) {
+    $("searchInput").addEventListener("input", filterRows);
+  }
 }
 
 init();
