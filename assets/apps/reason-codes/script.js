@@ -41,6 +41,18 @@ const REASON_CODES = [
   { id: 8, name: "Dodatkowe czynności - DD" },
   { id: 9, name: "Nowy operator, kontrola reszty" },
   { id: 10, name: "Błędnie załadowany towar" },
+  { id: 11, name: "Szkolenie nowego pracownika" },
+  { id: 12, name: "Wymogi klienta" },
+  { id: 13, name: "Zamówienia paczkowe" },
+  { id: 14, name: "Rozdrobnienie Pickingu" },
+  { id: 15, name: "Niewykwalifikowani pracownicy" },
+  { id: 16, name: "Zamówienia drobnicowe" },
+  { id: 17, name: "Zgrzewy - wysoki wolumen" },
+  { id: 18, name: "Instrukcje - wysoki wolumen" },
+  { id: 19, name: "Niski wolumen" },
+  { id: 20, name: "Opóźnienie w pickingu" },
+  { id: 21, name: "Problem ze specufikacjami/przewoźnikami" },
+  { id: 22, name: "Ograniczona ilość miejsca odstawczego" },
 ];
 
 // ---------------- STATE ----------------
@@ -150,8 +162,17 @@ function updateStats() {
 // ---------------- FILTER ----------------
 function applyFilters() {
   const q = $("searchInput")?.value.toLowerCase() || "";
+  const client = $("filterClient")?.value || "";
+  const wc = $("filterWC")?.value || "";
+  const rc = $("filterRC")?.value || "";
+  const month = $("filterMonth")?.value || "";
 
   filtered = allData.filter((r) => {
+    if (client && r.client !== client) return false;
+    if (wc && String(r.workCenter) !== wc) return false;
+    if (rc && String(r.reasonCode) !== rc) return false;
+    if (month && !r.date.startsWith(month)) return false;
+
     const txt = `
       ${r.id}
       ${r.date}
@@ -160,7 +181,9 @@ function applyFilters() {
       ${rcName(r.reasonCode)}
     `.toLowerCase();
 
-    return txt.includes(q);
+    if (q && !txt.includes(q)) return false;
+
+    return true;
   });
 
   currentPage = 1;
@@ -327,7 +350,7 @@ function populateSelects() {
   if ($("fieldClient")) {
     $("fieldClient").innerHTML =
       `<option value="">Wybierz</option>` +
-      CLIENTS.map((x) => `<option>${x}</option>`).join("");
+      CLIENTS.map((x) => `<option value="${x}">${x}</option>`).join("");
   }
 
   if ($("fieldWC")) {
@@ -345,6 +368,23 @@ function populateSelects() {
         (x) => `<option value="${x.id}">${x.name}</option>`,
       ).join("");
   }
+
+  // Filtry
+  if ($("filterWC")) {
+    $("filterWC").innerHTML =
+      `<option value="">Wszystkie Work Centers</options>` +
+      WORK_CENTERS.map(
+        (x) => `<option value="${x.id}">${x.name}</option>`,
+      ).join("");
+  }
+
+  if ($("filterRC")) {
+    $("filterRC").innerHTML =
+      `<option value="">Wszystkie Reason Codes</option>` +
+      REASON_CODES.map(
+        (x) => `<option value="${x.id}">${x.name}</option>`,
+      ).join("");
+  }
 }
 
 // ---------------- INIT ----------------
@@ -354,6 +394,22 @@ function init() {
 
   if ($("searchInput")) {
     $("searchInput").addEventListener("input", applyFilters);
+  }
+
+  if ($("filterClient")) {
+    $("filterClient").addEventListener("change", applyFilters);
+  }
+
+  if ($("filterWC")) {
+    $("filterWC").addEventListener("change", applyFilters);
+  }
+
+  if ($("filterRC")) {
+    $("filterRC").addEventListener("change", applyFilters);
+  }
+
+  if ($("filterMonth")) {
+    $("filterMonth").addEventListener("change", applyFilters);
   }
 }
 
