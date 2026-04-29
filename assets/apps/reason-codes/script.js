@@ -1,16 +1,16 @@
-// ======================================================
-// PERFORMANCE REASONS APP - FULL CRUD (API READY)
-// Endpoint:
-// /api/apps/performance/reasons/?key=XXX&type=GET
-// ======================================================
+// =======================================================
+// SCRIPT.JS - FULLY COMPATIBLE WITH YOUR CURRENT INDEX.HTML
+// Keeps your original HTML ids/functions:
+// saveEntry(), confirmDelete(), openDeleteModal(),
+// formModal, deleteModal, toast etc.
+// =======================================================
 
 // ---------------- CONFIG ----------------
 const API_KEY = "K3hT9sYrP2nV8bNq";
 const API_BASE = "/api/apps/performance/reasons/";
-
 const PAGE_SIZE = 20;
 
-// ---------------- STATIC DATA ----------------
+// ---------------- DATA ----------------
 const CLIENTS = ["3M", "Solventum"];
 
 const WORK_CENTERS = [
@@ -44,36 +44,46 @@ const REASON_CODES = [
 ];
 
 // ---------------- STATE ----------------
-let rows = [];
+let allData = [];
 let filtered = [];
 let currentPage = 1;
 let editId = null;
+let deleteTarget = null;
 
 // ---------------- HELPERS ----------------
 const $ = (id) => document.getElementById(id);
 
-function wcName(id) {
-  return WORK_CENTERS.find((x) => x.id == id)?.name || `WC ${id}`;
-}
+const wcName = (id) => WORK_CENTERS.find((x) => x.id == id)?.name || `WC ${id}`;
 
-function rcName(id) {
-  return REASON_CODES.find((x) => x.id == id)?.name || `RC ${id}`;
-}
+const rcName = (id) => REASON_CODES.find((x) => x.id == id)?.name || `RC ${id}`;
 
-function toast(msg, type = "ok") {
+// ---------------- TOAST ----------------
+let toastTimer = null;
+
+function showToast(msg, type = "") {
   const el = $("toast");
   if (!el) return alert(msg);
 
-  el.innerText = msg;
-  el.className = "toast show " + type;
+  el.textContent = msg;
+  el.className = "visible " + type;
 
-  setTimeout(() => {
-    el.className = "toast";
-  }, 2500);
+  clearTimeout(toastTimer);
+
+  toastTimer = setTimeout(() => {
+    el.className = "";
+  }, 3000);
+}
+
+// ---------------- STATUS ----------------
+function setApiStatus(status, txt) {
+  if (!$("apiDot") || !$("apiLabel")) return;
+
+  $("apiDot").className = "api-dot " + status;
+  $("apiLabel").textContent = txt;
 }
 
 // ---------------- API ----------------
-async function api(type, body = null) {
+async function apiCall(type, body = null) {
   const url = `${API_BASE}?key=${API_KEY}&type=${type}`;
 
   const options = {
@@ -96,54 +106,76 @@ async function api(type, body = null) {
   return await res.json();
 }
 
-// ---------------- LOAD DATA ----------------
+// ---------------- LOAD ----------------
 async function loadData() {
   try {
-    setStatus("loading", "Ładowanie...");
+    setApiStatus("loading", "Ładowanie...");
 
-    const data = await api("GET");
+    const raw = await apiCall("GET");
 
-    rows = data.map((r) => ({
+    allData = raw.map((r) => ({
       id: r.id,
       date: r.date,
       client: r.client,
-      work_center: r.work_center,
-      reason_code: r.reason_code,
-      created_at: r.created_at,
+      workCenter: r.work_center,
+      reasonCode: r.reason_code,
+      createdAt: r.created_at,
     }));
 
-    filtered = [...rows];
+    filtered = [...allData];
 
-    setStatus("ok", "Połączono");
-    render();
-    renderStats();
+    renderTable();
+    updateStats();
+
+    setApiStatus("ok", "API połączone");
   } catch (err) {
-    setStatus("err", "Błąd API");
-    toast(err.message, "err");
     console.error(err);
+    setApiStatus("err", "Błąd API");
+    showToast(err.message, "error");
   }
 }
 
-// ---------------- STATUS ----------------
-function setStatus(type, txt) {
-  const el = $("apiStatus");
-  if (!el) return;
+// ---------------- STATS ----------------
+function updateStats() {
+  if ($("statTotal")) $("statTotal").textContent = allData.length;
+  if ($("stat3m"))
+    $("stat3m").textContent = allData.filter((x) => x.client === "3M").length;
 
-  el.innerText = txt;
-  el.className = type;
+  if ($("statSol"))
+    $("statSol").textContent = allData.filter(
+      (x) => x.client === "Solventum",
+    ).length;
 }
 
-// ---------------- RENDER ----------------
-function render() {
+// ---------------- FILTER ----------------
+function applyFilters() {
+  const q = $("searchInput")?.value.toLowerCase() || "";
+
+  filtered = allData.filter((r) => {
+    const txt = `
+      ${r.id}
+      ${r.date}
+      ${r.client}
+      ${wcName(r.workCenter)}
+      ${rcName(r.reasonCode)}
+    `.toLowerCase();
+
+    return txt.includes(q);
+  });
+
+  currentPage = 1;
+  renderTable();
+}
+
+// ---------------- TABLE ----------------
+function renderTable() {
   const tbody = $("tableBody");
   if (!tbody) return;
 
   const start = (currentPage - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
+  const rows = filtered.slice(start, start + PAGE_SIZE);
 
-  const pageRows = filtered.slice(start, end);
-
-  if (!pageRows.length) {
+  if (!rows.length) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7">Brak danych</td>
@@ -152,19 +184,19 @@ function render() {
     return;
   }
 
-  tbody.innerHTML = pageRows
+  tbody.innerHTML = rows
     .map(
       (r) => `
     <tr>
       <td>${r.id}</td>
       <td>${r.date}</td>
       <td>${r.client}</td>
-      <td>${wcName(r.work_center)}</td>
-      <td>${rcName(r.reason_code)}</td>
-      <td>${r.created_at || "-"}</td>
+      <td>${wcName(r.workCenter)}</td>
+      <td>${rcName(r.reasonCode)}</td>
+      <td>${r.createdAt || "-"}</td>
       <td>
-        <button onclick="openEdit(${r.id})">✏️</button>
-        <button onclick="removeRow(${r.id})">🗑️</button>
+        <button onclick="openModal(${r.id})">✏️</button>
+        <button onclick="openDeleteModal(${r.id})">🗑️</button>
       </td>
     </tr>
   `,
@@ -176,7 +208,7 @@ function render() {
 
 // ---------------- PAGINATION ----------------
 function renderPagination() {
-  const el = $("pagination");
+  const el = $("pageBtns");
   if (!el) return;
 
   const pages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -185,54 +217,53 @@ function renderPagination() {
 
   for (let i = 1; i <= pages; i++) {
     html += `
-      <button onclick="goPage(${i})"
-      class="${i === currentPage ? "active" : ""}">
-      ${i}
-      </button>
+      <button class="page-btn ${i === currentPage ? "active" : ""}"
+      onclick="goPage(${i})">${i}</button>
     `;
   }
 
   el.innerHTML = html;
+
+  if ($("pageInfo")) {
+    $("pageInfo").textContent = `${filtered.length} wpisów`;
+  }
 }
 
 function goPage(page) {
   currentPage = page;
-  render();
+  renderTable();
 }
 
-// ---------------- FILTER ----------------
-function filterRows() {
-  const q = $("searchInput").value.toLowerCase();
+// ---------------- MODAL ADD / EDIT ----------------
+function openModal(id = null) {
+  editId = id;
 
-  filtered = rows.filter((r) => {
-    const text = `
-      ${r.id}
-      ${r.date}
-      ${r.client}
-      ${wcName(r.work_center)}
-      ${rcName(r.reason_code)}
-    `.toLowerCase();
+  if (id) {
+    const row = allData.find((x) => x.id == id);
 
-    return text.includes(q);
-  });
+    $("editId").value = row.id;
+    $("fieldDate").value = row.date;
+    $("fieldClient").value = row.client;
+    $("fieldWC").value = row.workCenter;
+    $("fieldRC").value = row.reasonCode;
+  } else {
+    $("editId").value = "";
+    $("fieldDate").value = "";
+    $("fieldClient").value = "";
+    $("fieldWC").value = "";
+    $("fieldRC").value = "";
+  }
 
-  currentPage = 1;
-  render();
+  $("formModal").classList.add("open");
 }
 
-// ---------------- STATS ----------------
-function renderStats() {
-  if ($("statTotal")) $("statTotal").innerText = rows.length;
-  if ($("stat3m"))
-    $("stat3m").innerText = rows.filter((x) => x.client === "3M").length;
-  if ($("statSol"))
-    $("statSol").innerText = rows.filter(
-      (x) => x.client === "Solventum",
-    ).length;
+function closeModal() {
+  $("formModal").classList.remove("open");
+  editId = null;
 }
 
-// ---------------- CREATE ----------------
-async function saveRow() {
+// ---------------- SAVE ----------------
+async function saveEntry() {
   try {
     const payload = {
       date: $("fieldDate").value,
@@ -242,98 +273,87 @@ async function saveRow() {
     };
 
     if (!payload.date || !payload.client) {
-      toast("Uzupełnij formularz", "err");
+      showToast("Uzupełnij formularz", "error");
       return;
     }
 
     if (editId) {
-      await api("UPDATE", {
+      await apiCall("UPDATE", {
         id: editId,
         ...payload,
       });
 
-      toast("Zaktualizowano");
+      showToast("Zaktualizowano", "success");
     } else {
-      await api("CREATE", payload);
-      toast("Dodano");
+      await apiCall("CREATE", payload);
+      showToast("Dodano", "success");
     }
 
     closeModal();
     await loadData();
   } catch (err) {
-    toast(err.message, "err");
+    showToast(err.message, "error");
   }
-}
-
-// ---------------- EDIT ----------------
-function openEdit(id) {
-  const row = rows.find((x) => x.id == id);
-  if (!row) return;
-
-  editId = id;
-
-  $("fieldDate").value = row.date;
-  $("fieldClient").value = row.client;
-  $("fieldWC").value = row.work_center;
-  $("fieldRC").value = row.reason_code;
-
-  openModal();
 }
 
 // ---------------- DELETE ----------------
-async function removeRow(id) {
-  if (!confirm("Usunąć wpis?")) return;
+function openDeleteModal(id) {
+  deleteTarget = id;
+  $("deleteModal").classList.add("open");
+}
+
+function closeDeleteModal() {
+  $("deleteModal").classList.remove("open");
+  deleteTarget = null;
+}
+
+async function confirmDelete() {
+  if (!deleteTarget) return;
 
   try {
-    await api("DELETE", { id });
-    toast("Usunięto");
+    await apiCall("DELETE", { id: deleteTarget });
+
+    showToast("Usunięto", "success");
+
+    closeDeleteModal();
     await loadData();
   } catch (err) {
-    toast(err.message, "err");
+    showToast(err.message, "error");
   }
 }
 
-// ---------------- MODAL ----------------
-function openModal() {
-  $("modal").style.display = "flex";
-}
-
-function closeModal() {
-  $("modal").style.display = "none";
-  editId = null;
-
-  $("fieldDate").value = "";
-  $("fieldClient").value = "";
-  $("fieldWC").value = "";
-  $("fieldRC").value = "";
-}
-
 // ---------------- SELECTS ----------------
-function fillSelects() {
-  $("fieldClient").innerHTML =
-    `<option value="">Wybierz</option>` +
-    CLIENTS.map((x) => `<option>${x}</option>`).join("");
+function populateSelects() {
+  if ($("fieldClient")) {
+    $("fieldClient").innerHTML =
+      `<option value="">Wybierz</option>` +
+      CLIENTS.map((x) => `<option>${x}</option>`).join("");
+  }
 
-  $("fieldWC").innerHTML =
-    `<option value="">Wybierz</option>` +
-    WORK_CENTERS.map((x) => `<option value="${x.id}">${x.name}</option>`).join(
-      "",
-    );
+  if ($("fieldWC")) {
+    $("fieldWC").innerHTML =
+      `<option value="">Wybierz</option>` +
+      WORK_CENTERS.map(
+        (x) => `<option value="${x.id}">${x.name}</option>`,
+      ).join("");
+  }
 
-  $("fieldRC").innerHTML =
-    `<option value="">Wybierz</option>` +
-    REASON_CODES.map((x) => `<option value="${x.id}">${x.name}</option>`).join(
-      "",
-    );
+  if ($("fieldRC")) {
+    $("fieldRC").innerHTML =
+      `<option value="">Wybierz</option>` +
+      REASON_CODES.map(
+        (x) => `<option value="${x.id}">${x.name}</option>`,
+      ).join("");
+  }
 }
 
 // ---------------- INIT ----------------
 function init() {
-  fillSelects();
+  populateSelects();
   loadData();
 
   if ($("searchInput")) {
-    $("searchInput").addEventListener("input", filterRows);
+    $("searchInput").addEventListener("input", applyFilters);
   }
 }
 
