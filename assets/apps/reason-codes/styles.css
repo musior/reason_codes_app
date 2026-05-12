@@ -150,6 +150,26 @@ body {
   font-family: var(--mono);
 }
 
+.whp-dashboard-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: var(--font);
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.whp-dashboard-btn:hover {
+  background: var(--surface2);
+  color: var(--text2);
+}
+
 /* MAIN */
 .main {
   flex: 1;
