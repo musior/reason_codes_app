@@ -13,6 +13,8 @@ const PAGE_SIZE = 20;
 // ---------------- DATA ----------------
 const CLIENTS = ["3M", "Solventum"];
 
+const SHIFTS = ["Zmiana 1", "Zmiana 2", "Zmiana 3", "Total"];
+
 const WORK_CENTERS = [
   { id: 1, name: "Przyjęcie drobnicy" },
   { id: 2, name: "Przyjęcie palet" },
@@ -131,6 +133,7 @@ async function loadData() {
       client: r.client,
       workCenter: r.work_center,
       reasonCode: r.reason_code,
+      shift: r.shift || "",
       createdAt: r.created_at,
     }));
 
@@ -165,12 +168,14 @@ function applyFilters() {
   const client = $("filterClient")?.value || "";
   const wc = $("filterWC")?.value || "";
   const rc = $("filterRC")?.value || "";
+  const shift = $("filterShift")?.value || "";
   const month = $("filterMonth")?.value || "";
 
   filtered = allData.filter((r) => {
     if (client && r.client !== client) return false;
     if (wc && String(r.workCenter) !== wc) return false;
     if (rc && String(r.reasonCode) !== rc) return false;
+    if (shift && r.shift !== shift) return false;
     if (month && !r.date.startsWith(month)) return false;
 
     const txt = `
@@ -201,7 +206,7 @@ function renderTable() {
   if (!rows.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7">Brak danych</td>
+        <td colspan="8">Brak danych</td>
       </tr>
     `;
     return;
@@ -216,6 +221,7 @@ function renderTable() {
       <td>${r.client}</td>
       <td>${wcName(r.workCenter)}</td>
       <td>${rcName(r.reasonCode)}</td>
+      <td>${r.shift || "—"}</td>
       <td>${r.createdAt || "-"}</td>
       <td>
         <button onclick="openModal(${r.id})">✏️</button>
@@ -269,12 +275,14 @@ function openModal(id = null) {
     $("fieldClient").value = row.client;
     $("fieldWC").value = row.workCenter;
     $("fieldRC").value = row.reasonCode;
+    $("fieldShift").value = row.shift || "";
   } else {
     $("editId").value = "";
     $("fieldDate").value = "";
     $("fieldClient").value = "";
     $("fieldWC").value = "";
     $("fieldRC").value = "";
+    $("fieldShift").value = "";
   }
 
   $("formModal").classList.add("open");
@@ -293,9 +301,10 @@ async function saveEntry() {
       client: $("fieldClient").value,
       work_center: Number($("fieldWC").value),
       reason_code: Number($("fieldRC").value),
+      shift: $("fieldShift").value,
     };
 
-    if (!payload.date || !payload.client) {
+    if (!payload.date || !payload.client || !payload.work_center || !payload.reason_code || !payload.shift) {
       showToast("Uzupełnij formularz", "error");
       return;
     }
@@ -406,6 +415,10 @@ function init() {
 
   if ($("filterRC")) {
     $("filterRC").addEventListener("change", applyFilters);
+  }
+
+  if ($("filterShift")) {
+    $("filterShift").addEventListener("change", applyFilters);
   }
 
   if ($("filterMonth")) {
