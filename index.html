@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reason Codes</title>
-    <link rel="stylesheet" href="/assets/apps/reason-codes/styles.css?v=3" />
+    <script>
+      var t = localStorage.getItem("cp-theme");
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      if (t === "dark") document.documentElement.classList.add("dark");
+    </script>
+    <link rel="stylesheet" href="/assets/apps/reason-codes/styles.css?v=4" />
   </head>
   <body>
     <div class="header">
@@ -86,6 +91,13 @@
           <select class="filter-select" id="filterRC">
             <option value="">Wszystkie Reason Codes</option>
           </select>
+          <select class="filter-select" id="filterShift">
+            <option value="">Wszystkie zmiany</option>
+            <option value="Zmiana 1">Zmiana 1</option>
+            <option value="Zmiana 2">Zmiana 2</option>
+            <option value="Zmiana 3">Zmiana 3</option>
+            <option value="Total">Total</option>
+          </select>
           <input
             type="month"
             class="filter-select"
@@ -131,6 +143,9 @@
                 </th>
                 <th onclick="sortBy('reasonCode')" id="th-reasonCode">
                   Reason Code<span class="sort-icon">↕</span>
+                </th>
+                <th onclick="sortBy('shift')" id="th-shift">
+                  Zmiana<span class="sort-icon">↕</span>
                 </th>
                 <th>Dodano<span class="sort-icon"></span></th>
                 <th class="actions-col"></th>
@@ -182,6 +197,17 @@
               <option value="">— wybierz —</option>
             </select>
             <div class="form-hint" id="hintRC">Pole wymagane</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Zmiana<span>*</span></label>
+            <select class="form-select" id="fieldShift">
+              <option value="">— wybierz —</option>
+              <option value="Zmiana 1">Zmiana 1</option>
+              <option value="Zmiana 2">Zmiana 2</option>
+              <option value="Zmiana 3">Zmiana 3</option>
+              <option value="Total">Total</option>
+            </select>
+            <div class="form-hint" id="hintShift">Pole wymagane</div>
           </div>
         </div>
         <div class="modal-footer">
