@@ -126,8 +126,10 @@ async function loadData() {
     setApiStatus("loading", "Ładowanie...");
 
     const raw = await apiCall("GET");
+    const rows = (Array.isArray(raw) ? raw : (raw.value ?? raw.data ?? []))
+      .filter((r) => !r.deleted_at);
 
-    allData = raw.map((r) => ({
+    allData = rows.map((r) => ({
       id: r.id,
       date: r.date,
       client: r.client,
