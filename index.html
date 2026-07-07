@@ -6,7 +6,10 @@
     <title>Reason Codes</title>
     <script>
       var t = localStorage.getItem("cp-theme");
-      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      if (!t)
+        t = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
       if (t === "dark") document.documentElement.classList.add("dark");
     </script>
     <link rel="stylesheet" href="/assets/apps/reason-codes/styles.css?v=4" />
@@ -93,9 +96,9 @@
           </select>
           <select class="filter-select" id="filterShift">
             <option value="">Wszystkie zmiany</option>
-            <option value="Zmiana 1">Zmiana 1</option>
-            <option value="Zmiana 2">Zmiana 2</option>
-            <option value="Zmiana 3">Zmiana 3</option>
+            <option value="Zmiana 1">Grzegorz</option>
+            <option value="Zmiana 2">Łukasz</option>
+            <option value="Zmiana 3">Michał</option>
             <option value="Total">Total</option>
           </select>
           <input
@@ -202,9 +205,9 @@
             <label class="form-label">Zmiana<span>*</span></label>
             <select class="form-select" id="fieldShift">
               <option value="">— wybierz —</option>
-              <option value="Zmiana 1">Zmiana 1</option>
-              <option value="Zmiana 2">Zmiana 2</option>
-              <option value="Zmiana 3">Zmiana 3</option>
+              <option value="Zmiana 1">Grzegorz</option>
+              <option value="Zmiana 2">Łukasz</option>
+              <option value="Zmiana 3">Michał</option>
               <option value="Total">Total</option>
             </select>
             <div class="form-hint" id="hintShift">Pole wymagane</div>
