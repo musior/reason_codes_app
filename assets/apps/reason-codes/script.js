@@ -13,7 +13,7 @@ const PAGE_SIZE = 20;
 // ---------------- DATA ----------------
 const CLIENTS = ["3M", "Solventum"];
 
-const SHIFTS = ["Zmiana 1", "Zmiana 2", "Zmiana 3", "Total"];
+const SHIFTS = ["Grzegorz", "Łukasz", "Michał", "Total"];
 
 const WORK_CENTERS = [
   { id: 1, name: "Przyjęcie drobnicy" },
@@ -53,7 +53,7 @@ const REASON_CODES = [
   { id: 18, name: "Instrukcje - wysoki wolumen" },
   { id: 19, name: "Niski wolumen" },
   { id: 20, name: "Opóźnienie w pickingu" },
-  { id: 21, name: "Problem ze specufikacjami/przewoźnikami" },
+  { id: 21, name: "Problem ze specyfikacjami/przewoźnikami" },
   { id: 22, name: "Ograniczona ilość miejsca odstawczego" },
 ];
 
@@ -126,8 +126,9 @@ async function loadData() {
     setApiStatus("loading", "Ładowanie...");
 
     const raw = await apiCall("GET");
-    const rows = (Array.isArray(raw) ? raw : (raw.value ?? raw.data ?? []))
-      .filter((r) => !r.deleted_at);
+    const rows = (
+      Array.isArray(raw) ? raw : (raw.value ?? raw.data ?? [])
+    ).filter((r) => !r.deleted_at);
 
     allData = rows.map((r) => ({
       id: r.id,
@@ -306,7 +307,13 @@ async function saveEntry() {
       shift: $("fieldShift").value,
     };
 
-    if (!payload.date || !payload.client || !payload.work_center || !payload.reason_code || !payload.shift) {
+    if (
+      !payload.date ||
+      !payload.client ||
+      !payload.work_center ||
+      !payload.reason_code ||
+      !payload.shift
+    ) {
       showToast("Uzupełnij formularz", "error");
       return;
     }
