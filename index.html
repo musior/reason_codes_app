@@ -11,6 +11,16 @@
           ? "dark"
           : "light";
       if (t === "dark") document.documentElement.classList.add("dark");
+
+      window.addEventListener("storage", function (e) {
+        if (e.key !== "cp-theme") return;
+        var newTheme =
+          e.newValue ||
+          (window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+        document.documentElement.classList.toggle("dark", newTheme === "dark");
+      });
     </script>
     <link rel="stylesheet" href="/assets/apps/reason-codes/styles.css?v=4" />
   </head>
