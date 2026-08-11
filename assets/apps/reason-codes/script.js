@@ -352,7 +352,18 @@ async function confirmDelete() {
   if (!deleteTarget) return;
 
   try {
-    await apiCall("DELETE", { id: deleteTarget });
+    const res = await fetch(`${API_BASE}${deleteTarget}?key=${API_KEY}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const errBody = await res.json();
+        message = errBody?.error?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
 
     showToast("Usunięto", "success");
 
