@@ -160,6 +160,7 @@
                 <th onclick="sortBy('shift')" id="th-shift">
                   Zmiana<span class="sort-icon">↕</span>
                 </th>
+                <th>Komentarz</th>
                 <th>Dodano<span class="sort-icon"></span></th>
                 <th class="actions-col"></th>
               </tr>
@@ -221,6 +222,15 @@
               <option value="Total">Total</option>
             </select>
             <div class="form-hint" id="hintShift">Pole wymagane</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dodatkowy komentarz</label>
+            <input
+              type="text"
+              class="form-input"
+              id="fieldComment"
+              maxlength="255"
+            />
           </div>
         </div>
         <div class="modal-footer">
