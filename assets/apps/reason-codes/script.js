@@ -71,6 +71,15 @@ const wcName = (id) => WORK_CENTERS.find((x) => x.id == id)?.name || `WC ${id}`;
 
 const rcName = (id) => REASON_CODES.find((x) => x.id == id)?.name || `RC ${id}`;
 
+const escapeHtml = (str) =>
+  String(str ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+
 // ---------------- TOAST ----------------
 let toastTimer = null;
 
@@ -137,6 +146,7 @@ async function loadData() {
       workCenter: r.work_center,
       reasonCode: r.reason_code,
       shift: r.shift || "",
+      comment: r.comment || "",
       createdAt: r.created_at,
     }));
 
@@ -209,7 +219,7 @@ function renderTable() {
   if (!rows.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8">Brak danych</td>
+        <td colspan="9">Brak danych</td>
       </tr>
     `;
     return;
@@ -225,6 +235,7 @@ function renderTable() {
       <td>${wcName(r.workCenter)}</td>
       <td>${rcName(r.reasonCode)}</td>
       <td>${r.shift || "—"}</td>
+      <td>${escapeHtml(r.comment) || "—"}</td>
       <td>${r.createdAt || "-"}</td>
       <td>
         <button onclick="openModal(${r.id})">✏️</button>
@@ -279,6 +290,7 @@ function openModal(id = null) {
     $("fieldWC").value = row.workCenter;
     $("fieldRC").value = row.reasonCode;
     $("fieldShift").value = row.shift || "";
+    $("fieldComment").value = row.comment || "";
   } else {
     $("editId").value = "";
     $("fieldDate").value = "";
@@ -286,6 +298,7 @@ function openModal(id = null) {
     $("fieldWC").value = "";
     $("fieldRC").value = "";
     $("fieldShift").value = "";
+    $("fieldComment").value = "";
   }
 
   $("formModal").classList.add("open");
@@ -305,6 +318,7 @@ async function saveEntry() {
       work_center: Number($("fieldWC").value),
       reason_code: Number($("fieldRC").value),
       shift: $("fieldShift").value,
+      comment: $("fieldComment").value.trim(),
     };
 
     if (
