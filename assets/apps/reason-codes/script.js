@@ -7,7 +7,7 @@
 
 // ---------------- CONFIG ----------------
 const API_KEY = "K3hT9sYrP2nV8bNq";
-const API_BASE = "/api/apps/performance/reasons/";
+const API_BASE = "https://cloud.fiege.pl/api/apps/performance/reasons/";
 const PAGE_SIZE = 20;
 
 // ---------------- DATA ----------------
@@ -106,11 +106,12 @@ function setApiStatus(status, txt) {
 }
 
 // ---------------- API ----------------
-async function apiCall(type, body = null) {
-  const url = `${API_BASE}?key=${API_KEY}&type=${type}`;
+async function apiCall(type, body = null, id = null) {
+  const idSegment = id ? `${id}` : "";
+  const url = `${API_BASE}${idSegment}?key=${API_KEY}&type=${type}`;
 
   const options = {
-    method: body ? "POST" : "GET",
+    method: id ? "PUT" : body ? "POST" : "GET",
     headers: {
       "Content-Type": "application/json",
     },
@@ -333,10 +334,14 @@ async function saveEntry() {
     }
 
     if (editId) {
-      await apiCall("UPDATE", {
-        id: editId,
-        ...payload,
-      });
+      await apiCall(
+        "UPDATE",
+        {
+          id: editId,
+          ...payload,
+        },
+        editId,
+      );
 
       showToast("Zaktualizowano", "success");
     } else {
