@@ -106,9 +106,10 @@ function setApiStatus(status, txt) {
 }
 
 // ---------------- API ----------------
-async function apiCall(type, body = null, id = null) {
+async function apiCall(type, body = null, id = null, params = {}) {
   const idSegment = id ? `${id}` : "";
-  const url = `${API_BASE}${idSegment}?key=${API_KEY}&type=${type}`;
+  const query = new URLSearchParams({ key: API_KEY, type, ...params });
+  const url = `${API_BASE}${idSegment}?${query}`;
 
   const options = {
     method: id ? "PUT" : body ? "POST" : "GET",
@@ -135,10 +136,20 @@ async function loadData() {
   try {
     setApiStatus("loading", "Ładowanie...");
 
-    const raw = await apiCall("GET");
-    const rows = (
-      Array.isArray(raw) ? raw : (raw.value ?? raw.data ?? [])
-    ).filter((r) => !r.deleted_at);
+    let page = 1;
+    let lastPage = 1;
+    let rawRows = [];
+
+    do {
+      const raw = await apiCall("GET", null, null, { page, per_page: 1000 });
+      rawRows = rawRows.concat(
+        Array.isArray(raw) ? raw : (raw.value ?? raw.data ?? []),
+      );
+      lastPage = raw?.meta?.last_page ?? 1;
+      page++;
+    } while (page <= lastPage);
+
+    const rows = rawRows.filter((r) => !r.deleted_at);
 
     allData = rows.map((r) => ({
       id: r.id,
